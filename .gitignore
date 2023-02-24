@@ -2,5 +2,11 @@ lexer.ml
 parser.cmi
 parser.ml
 
+# Compiled files
 *.cmo
 *.mli
+*.cmi
+comp
+
+# MacOS file
+.DS_Store
