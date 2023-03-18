@@ -1,12 +1,16 @@
-lexer.ml
-parser.cmi
-parser.ml
+# Lib files
+src/lexer.ml
+src/parser.cmi
+src/parser.ml
 
 # Compiled files
 *.cmo
 *.mli
-*.cmi
+src/**/*.cmi
 comp
+
+# Tests out
+tests/out/
 
 # MacOS file
 .DS_Store
