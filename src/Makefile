@@ -1,5 +1,5 @@
-# Import lib + compile + clean folder
-all: lib comp clean
+# Import lib + compile
+all: lib comp
 
 # Compilation of Ocaml files
 # Attention: order of object files important 
@@ -51,10 +51,14 @@ parser.cmo: parser.ml parser.cmi lang.cmo
 
 .PHONY: clean
 
-### Import files from /lib
+### Import files from /lib (temporarly)
 lib:
 	cp ../lib/* ./
 
 ## Remove compiled modules and lib
 clean:
 	rm -f lexer.ml parser.ml *.mli *.cmi *.cmo
+
+## Run tests
+tests:
+	./comp ./../tests/rectangles.c ./../tests/out/rectangles.ps
