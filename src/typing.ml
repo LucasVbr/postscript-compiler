@@ -1,17 +1,17 @@
 (* Typechecking of source programs *)
 
-open Lang
+open Lang;;
 
 (* Environments *)
 type environment = {
     localvars: (vname * tp) list; 
     funbind: fundecl list   
-}
+};;
 
 (* Recherche dans l'environement *)
 type 'a option = None| Some of 'a;;
 
-let lookup_env (name: vname) (env: environment) =
+let findEnv_var (name: vname) (env: environment) =
     let rec aux = function
     | [] -> None
     | (k, v)::reste ->
@@ -19,27 +19,32 @@ let lookup_env (name: vname) (env: environment) =
         else aux(reste)
     in aux(env.localvars)
 ;;
+(* val findEnv_var :
+   Lang.vname -> environment
+   -> Lang.tp option = <fun>
+*)
 
-(* Ajoute dans l'environement *)
-let rec add_env (key, valeur) env =
-    let paire = (key, valeur)
-    in {localvars: paire::(env.localvars); funbind: (env.funbind)}
+let findEnv_fun (name: fname) (env: environment) =
+    let rec aux = function
+    | [] -> None
+    | Fundecl(tp, fname, vars)::reste ->
+        let f = (tp, fname, vars) in
+        if fname = name then Some(f)
+        else aux(reste)
+    in aux(env.funbind)
 ;;
+(* val findEnv_fun :
+  Lang.fname -> environment
+  -> (Lang.tp * Lang.fname * Lang.vardecl list) option = <fun>
+*)
 
-(* Enlève de l'environement *)
-let rec remove_env key env =
-    let aux (liste) = 
-    match liste with
-    | [] -> []
-    | (k, v)::reste when k = key -> remove_assoc key reste
-    | a::reste -> a::(remove_assoc key reste)
-    in {
-        localvars: (aux(env.localvars));
-        funbind: (env.funbind)
-    }
+let tp_vardecl (vdecl: vardecl) = 
+    let Vardecl(vdecl_tp, _) = vdecl
+    in vdecl_tp
 ;;
+(* val tp_vardecl : Lang.vardecl -> Lang.tp = <fun> *)
 
-(* Typage d'une expression *)
+(* ----- Typage d'une expression ----- *)
 let rec tp_expr (env: environment) (expression: expr) =
     match expression with
     | Const(const) -> (
@@ -51,7 +56,7 @@ let rec tp_expr (env: environment) (expression: expr) =
       | StringV _ -> StringT
       )
     | VarE(var) -> (
-      let var_value = (lookup_env var env) in
+      let var_value = (findEnv_var var env) in
       match var_value with
       | Some(value) -> value
       | None -> raise (Failure "Unknown var")
@@ -60,21 +65,26 @@ let rec tp_expr (env: environment) (expression: expr) =
         let tp_expr1 = tp_expr env expr1
         and tp_expr2 = tp_expr env expr2 in
         if tp_expr1 = tp_expr2
-        then match op with
-        | BArith(barith) -> (
-            match barith with
-            | BAadd -> IntT
-            | BAsub -> IntT
-            | BAmul -> IntT
-            | BAdiv -> IntT
-            | BAmod ->  IntT
-            | BAfadd -> FloatT 
-            | BAfsub -> FloatT
-            | BAfmul -> FloatT
-            | BAfdiv -> FloatT
+        then (
+            match op with
+            | BArith(barith) -> (
+                match barith with
+                | BAadd -> IntT
+                | BAsub -> IntT
+                | BAmul -> IntT
+                | BAdiv -> IntT
+                | BAmod ->  IntT
+                | BAfadd -> FloatT 
+                | BAfsub -> FloatT
+                | BAfmul -> FloatT
+                | BAfdiv -> FloatT
+            )
+            | BBool(_) ->
+                if tp_expr1 = BoolT && tp_expr2 = BoolT
+                then BoolT
+                else raise (Failure "Invalid Boolean operation")
+            | BCompar(_) -> BoolT
         )
-        | BBool(_) -> BoolT
-        | BCompar(_) -> BoolT
         else raise (Failure "Invalid type of Binary operation")
     | CondE(expr1, expr2, expr3) ->
         let tp_expr1 = tp_expr env expr1
@@ -83,10 +93,95 @@ let rec tp_expr (env: environment) (expression: expr) =
         in if tp_expr1 = BoolT && tp_expr2 = tp_expr3
         then tp_expr2
         else raise (Failure "Invalid type of Conditionnal Expression")
-    | CallE(name, list_expr) -> VoidT (* TODO *)
+    | CallE(name, list_expr) -> 
+        match (findEnv_fun name env) with
+        | Some(func) -> (
+            let (func_tp, func_name, func_list_vardecl) = func in
+            if (List.map (tp_expr env) list_expr) = (List.map tp_vardecl func_list_vardecl)
+            then func_tp
+            else raise (Failure "Invalid arguments")
+        )
+        | None -> raise (Failure "Unknown function in the environment")
 ;;
- 
+(* val tp_expr :
+   environment -> Lang.expr
+   -> Lang.tp = <fun>
+*)
 
+(* - tp_expr: TESTS - *)
+let test_tp_expr_const =
+    let function_to_test = tp_expr {
+        localvars=[
+            ("i", IntT);
+            ("f", FloatT);
+            ("b", BoolT);
+            ("l", LitT);
+            ("s", StringT);
+        ];
+        funbind=[
+            Fundecl(BoolT, "fun1", [Vardecl(IntT, "a"); Vardecl(FloatT, "b")])
+        ]
+    }
+    and input_values = [
+        Const(BoolV(true));
+        Const(FloatV(10.98));
+        Const(IntV(10));
+        Const(LitV("l"));
+        Const(StringV("Hello"));
+
+        VarE("b");
+        VarE("f");
+        VarE("i");
+        VarE("l");
+        VarE("s");
+        
+        BinOp(BArith(BAadd), Const(IntV(5)), VarE("i"));
+        BinOp(BArith(BAsub), Const(IntV(5)), VarE("i"));
+        BinOp(BArith(BAmul), Const(IntV(5)), VarE("i"));
+        BinOp(BArith(BAdiv), Const(IntV(5)), VarE("i"));
+        BinOp(BArith(BAmod), Const(IntV(5)), VarE("i"));
+
+        BinOp(BArith(BAfadd), Const(FloatV(5.)), VarE("f"));
+        BinOp(BArith(BAfsub), Const(FloatV(5.)), VarE("f"));
+        BinOp(BArith(BAfmul), Const(FloatV(5.)), VarE("f"));
+        BinOp(BArith(BAfdiv), Const(FloatV(5.)), VarE("f"));
+        
+        BinOp(BCompar(BCeq), VarE("i"), VarE("i"));
+        BinOp(BCompar(BCge), VarE("i"), VarE("i"));
+        BinOp(BCompar(BCgt), VarE("i"), VarE("i"));
+        BinOp(BCompar(BCle), VarE("i"), VarE("i"));
+        BinOp(BCompar(BClt), VarE("i"), VarE("i"));
+        BinOp(BCompar(BCne), VarE("i"), VarE("i"));
+
+        BinOp(BBool(BBand), VarE("b"), VarE("b"));
+        BinOp(BBool(BBor), VarE("b"), VarE("b"));
+
+        (* (4 >= 5) ? 7 : 8 -> IntT *)
+        CondE(
+            BinOp(BCompar(BCge), Const(IntV(4)), Const(IntV(5))),
+            Const(IntV(7)),
+            Const(IntV(8))
+        );
+
+        CallE("fun1", [VarE("i"); VarE("f")]);
+        (* CallE("fun2", [VarE("i"); VarE("f")]); *)
+        (* CallE("fun1", [VarE("b"); VarE("f")]); *)
+    ] and expected_result = [
+        BoolT; FloatT; IntT; LitT; StringT;
+        BoolT; FloatT; IntT; LitT; StringT;
+        IntT; IntT; IntT; IntT; IntT;
+        FloatT; FloatT; FloatT; FloatT;
+        BoolT; BoolT; BoolT; BoolT; BoolT; BoolT;
+        BoolT; BoolT;
+
+        IntT;
+        BoolT;
+    ] in
+    try ((List.map function_to_test input_values) = expected_result) with
+    _ -> false
+;;
+
+(* ----- Typage d'une commande ----- *)
 let rec tp_cmd (env: environment) (cmd: com) =
     match cmd with
     | Skip -> VoidT
@@ -95,7 +190,7 @@ let rec tp_cmd (env: environment) (cmd: com) =
     | Seq(cmd1, cmd2) ->
         let tp_cmd1 = (tp_cmd env cmd1)
         and tp_cmd2 = (tp_cmd env cmd2)
-        in if tp_cmd1 = Void
+        in if tp_cmd1 = VoidT
         then tp_cmd2
         else raise (Failure "Invalid type Sequence")
     | CondC(expr1, cmd1, cmd2) ->
@@ -107,11 +202,13 @@ let rec tp_cmd (env: environment) (cmd: com) =
         then tp_cmd1
         else raise (Failure "Invalid type of Conditionnal Command")
     | Loop(cmd1) ->
-        let _ = (tp_cmd env cmd1)
-        in VoidT
+        let _ = (tp_cmd env cmd1) in VoidT
     | CallC(name, list_expr) -> VoidT (* TODO Faire l'appel *)
     | Return(expr) -> (tp_expr env expr)
   
 ;;
 
-let tp_prog (Prog (fundecls, fundefns)) = true
+(* let tp_fundefn fundefns = ;; *)
+(* let tp_stmt fundecls = ;; *)
+
+let tp_prog (Prog (fundecls, fundefns)) = true;; (* try (tp_fundefn fundefns) && (tp_stmt fundecls) with _ -> false *)
