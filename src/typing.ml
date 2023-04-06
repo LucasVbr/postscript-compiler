@@ -38,6 +38,28 @@ let findEnv_fun (name: fname) (env: environment) =
   -> (Lang.tp * Lang.fname * Lang.vardecl list) option = <fun>
 *)
 
+(* Ajout dans l'environnement *)
+let addEnv_var (var_decl: vardecl) (env: environment) =
+    let Vardecl(var_decl_tp, var_decl_name) = var_decl
+    in {
+    localvars=(var_decl_name, var_decl_tp)::(env.localvars);
+    funbind=env.funbind
+};;
+(* val addEnv_var :
+   Lang.vardecl -> environment
+   -> environment = <fun>
+*)
+
+let addEnv_fun (fun_decl: fundecl) (env: environment) = {
+    localvars=(env.localvars);
+    funbind=(fun_decl::(env.funbind))
+};;
+(* val addEnv_fun :
+   Lang.fundecl -> environment
+   -> environment = <fun>
+*)
+
+(* Typage d'une declaration de variable *)
 let tp_vardecl (vdecl: vardecl) = 
     let Vardecl(vdecl_tp, _) = vdecl
     in vdecl_tp
@@ -250,7 +272,58 @@ let test_tp_cmd =
     (List.map function_to_test input_values) = expected_result
 ;;
 
-(* let tp_fundefn fundefns = ;; *)
+(* ----- Typage d'une définition de fonction ----- *)
+let rec count_same_var_name (name: string) (var_decl_list: vardecl list) =
+    match var_decl_list with
+    | [] -> 0
+    | Vardecl(var_tp, var_name)::reste ->
+        (count_same_var_name name reste)
+        + if name = var_name then 1 else 0
+;;
+(* val count_same_var_decl : string -> Lang.vardecl list -> int = <fun> *)
+
+let rec valid_vardecl_list (var_decl_list: vardecl list) =
+    match var_decl_list with
+    | [] -> true
+    | Vardecl(var_tp, var_name)::reste ->
+        if (count_same_var_name var_name reste) = 0
+        then valid_vardecl_list reste
+        else false
+;;
+(* val valid_vardecl_list : Lang.vardecl list -> bool = <fun> *)
+
+let tp_fundefn (env: environment) (fun_def: fundefn) =
+    let Fundefn(fun_decl, cmd) = fun_def in
+    let Fundecl(fun_decl_tp,_,var_decl_list) = fun_decl in
+    let env1 = (addEnv_fun fun_decl env) in (* Besoin d'effacer dans l'env si recurence ? *)
+    let _ = tp_cmd env1 cmd
+    in if valid_vardecl_list var_decl_list && (tp_cmd env1 cmd) = fun_decl_tp
+    then fun_decl_tp
+    else raise (Failure "Invalid function definition")
+;;
+(* val tp_fundefn :
+   environment -> Lang.fundefn
+   -> Lang.tp = <fun>
+*)
+
+(* - tp_fundefn: TESTS - *)
+let test_tp_fundefn =
+    let function_to_test = tp_fundefn {
+        localvars=[];
+        funbind=[]
+    }
+    and input_values = [
+        Fundefn(
+            Fundecl(BoolT, "fun1", [Vardecl(IntT, "a"); Vardecl(FloatT, "b")]),
+            Return(BinOp(BCompar(BCeq), Const(IntV(4)), Const(IntV(5))))
+        )
+    ]
+    and expected_result = [
+        BoolT
+    ] in
+    (List.map function_to_test input_values) = expected_result
+;;
+
 (* let tp_stmt fundecls = ;; *)
 
 let tp_prog (Prog (fundecls, fundefns)) = true;; (* try (tp_fundefn fundefns) && (tp_stmt fundecls) with _ -> false *)
