@@ -177,8 +177,7 @@ let test_tp_expr =
         IntT;
         BoolT;
     ] in
-    try ((List.map function_to_test input_values) = expected_result) with
-    _ -> false
+    (List.map function_to_test input_values) = expected_result
 ;;
 
 (* ----- Typage d'une commande ----- *)
@@ -203,9 +202,13 @@ let rec tp_cmd (env: environment) (cmd: com) =
         else raise (Failure "Invalid type of Conditionnal Command")
     | Loop(cmd1) ->
         let _ = (tp_cmd env cmd1) in VoidT
-    | CallC(name, list_expr) -> VoidT (* TODO Faire l'appel *)
+    | CallC(name, list_expr) -> tp_expr env (CallE(name, list_expr)) (* TODO => Question: Il faut renvoyer le type ??? *)
     | Return(expr) -> (tp_expr env expr)
 ;;
+(* val tp_cmd :
+   environment -> Lang.com
+   -> Lang.tp = <fun>
+*)
 
 (* - tp_cmd: TESTS - *)
 let test_tp_cmd =
@@ -213,18 +216,38 @@ let test_tp_cmd =
         localvars=[
             ("i", IntT);
             ("f", FloatT);
-            ("b", BoolT);
-            ("l", LitT);
-            ("s", StringT);
         ];
         funbind=[
             Fundecl(BoolT, "fun1", [Vardecl(IntT, "a"); Vardecl(FloatT, "b")])
         ]
     }
-    and input_values = []
-    and expected_result = [] in
-    try ((List.map function_to_test input_values) = expected_result) with
-    _ -> false
+    and input_values = [
+        Skip;
+        Exit;
+        Assign("test", Const(IntV(5)));
+        Seq(Skip, Exit);
+        Seq(Skip, Return(Const(FloatV(5.))));
+
+        CondC(
+            BinOp(BCompar(BCge), Const(IntV(4)), Const(IntV(5))),
+            Skip, Skip
+        );
+        Loop(Exit);
+
+        CallC("fun1", [VarE("i"); VarE("f")]);
+        Return(Const(IntV(5)));
+    ]
+    and expected_result = [
+        VoidT;
+        VoidT;
+        VoidT;
+        VoidT; FloatT;
+        VoidT;
+        VoidT;
+        BoolT;
+        IntT;
+    ] in
+    (List.map function_to_test input_values) = expected_result
 ;;
 
 (* let tp_fundefn fundefns = ;; *)
