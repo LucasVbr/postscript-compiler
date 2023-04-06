@@ -109,7 +109,7 @@ let rec tp_expr (env: environment) (expression: expr) =
 *)
 
 (* - tp_expr: TESTS - *)
-let test_tp_expr_const =
+let test_tp_expr =
     let function_to_test = tp_expr {
         localvars=[
             ("i", IntT);
@@ -186,7 +186,7 @@ let rec tp_cmd (env: environment) (cmd: com) =
     match cmd with
     | Skip -> VoidT
     | Exit -> VoidT
-    | Assign(name, expr) -> VoidT (* TODO ajouter dans env *)
+    | Assign(name, expr) -> VoidT
     | Seq(cmd1, cmd2) ->
         let tp_cmd1 = (tp_cmd env cmd1)
         and tp_cmd2 = (tp_cmd env cmd2)
@@ -205,7 +205,26 @@ let rec tp_cmd (env: environment) (cmd: com) =
         let _ = (tp_cmd env cmd1) in VoidT
     | CallC(name, list_expr) -> VoidT (* TODO Faire l'appel *)
     | Return(expr) -> (tp_expr env expr)
-  
+;;
+
+(* - tp_cmd: TESTS - *)
+let test_tp_cmd =
+    let function_to_test = tp_cmd {
+        localvars=[
+            ("i", IntT);
+            ("f", FloatT);
+            ("b", BoolT);
+            ("l", LitT);
+            ("s", StringT);
+        ];
+        funbind=[
+            Fundecl(BoolT, "fun1", [Vardecl(IntT, "a"); Vardecl(FloatT, "b")])
+        ]
+    }
+    and input_values = []
+    and expected_result = [] in
+    try ((List.map function_to_test input_values) = expected_result) with
+    _ -> false
 ;;
 
 (* let tp_fundefn fundefns = ;; *)
