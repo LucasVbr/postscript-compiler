@@ -26,7 +26,7 @@ lexer.ml: lexer.mll lang.cmo
 	ocamllex $<
 
 parser.ml parser.mli: parser.mly lang.cmo
-	ocamlyacc $<
+	ocamlyacc -v $<
 
 lexer.cmo: lexer.ml parser.cmo
 	ocamlc -c $<

@@ -39,7 +39,7 @@ rule token = parse
 | "string" {TP(StringT)}
 | "float" {TP(FloatT)}
 | "void" {TP(VoidT)}
-| "lit" {TP(LitT)}   (* Potentiellement list *) 
+| "lit" {TP(LitT)} (* faut demander *)   
 
 | '('  { LPAREN }
 | ')'  { RPAREN }
@@ -73,16 +73,16 @@ rule token = parse
 | "while" {WHILE}
 | "for" {FOR}
 
-| "true" {BCONSTANT(true)}
-| "false" {BCONSTANT(false)}
-| num_virgule as s {FLOATCONSTANT(float_of_string s)}
-| num as s {INTCONSTANT(int_of_string s)}
-| literal as l    { LITCONSTANT l }
-| str as s    { STRINGCONSTANT s }
+| "True" {BCONSTANT(true)}
+| "False" {BCONSTANT(false)}
 
 
 | eof          {EOF}
 
+| num_virgule as s {FLOATCONSTANT(float_of_string s)}
+| num as s {INTCONSTANT(int_of_string s)}
+| literal as l    { LITCONSTANT l }
+| str as s    { STRINGCONSTANT s }
 | alph alph* as i  {IDENTIFIER i} 
 
 | _  {Printf.printf "ERROR: unrecogized symbol '%s'\n" (Lexing.lexeme lexbuf);
