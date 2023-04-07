@@ -13,12 +13,12 @@ open Instrs;;
 (* For using the parser:
 
 - Evaluate this file (use.ml)
-- parse "Tests/rectangles.c" ;;
+- parse "../Tests/progsimple.c" ;;
 
 * For code generation:
 
 - Evaluate this file (use.ml)
-- run_test "Tests/rectangles.c" "Tests/rectangles.ps";;
+- run_test "../Tests/rectangles.c" "../Tests/rectangles.ps";;
 *)
 
 
