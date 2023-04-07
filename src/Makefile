@@ -1,5 +1,5 @@
 # Compile
-all: comp
+all: comp #lib
 
 # Compilation of Ocaml files
 # Attention: order of object files important 
@@ -29,11 +29,9 @@ comp.cmo: comp.ml gen.cmo typing.cmo parser.cmo interf.cmo
 
 # ocaml lexer and parser
 
-# Comment in for your own lexer
 lexer.ml: lexer.mll lang.cmo
 	ocamllex $<
 
-# Comment in for your own parser
 parser.ml parser.mli: parser.mly lang.cmo
 	ocamlyacc $<
 
@@ -55,10 +53,6 @@ parser.cmo: parser.ml parser.cmi lang.cmo
 # lib:
 # 	cp ../lib/* ./
 
-## Remove compiled modules and lib
+## Remove compiled modules
 clean:
 	rm -f lexer.ml parser.ml *.mli *.cmi *.cmo
-
-## Run tests
-tests:
-	./comp ./../tests/rectangles.c ./../tests/out/rectangles.ps
