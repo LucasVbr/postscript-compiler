@@ -1,5 +1,5 @@
-# Import lib + compile
-all: lib comp
+# Compile
+all: comp
 
 # Compilation of Ocaml files
 # Attention: order of object files important 
@@ -30,12 +30,12 @@ comp.cmo: comp.ml gen.cmo typing.cmo parser.cmo interf.cmo
 # ocaml lexer and parser
 
 # Comment in for your own lexer
-# lexer.ml: lexer.mll lang.cmo
-# 	ocamllex $<
+lexer.ml: lexer.mll lang.cmo
+	ocamllex $<
 
 # Comment in for your own parser
-# parser.ml parser.mli: parser.mly lang.cmo
-# 	ocamlyacc $<
+parser.ml parser.mli: parser.mly lang.cmo
+	ocamlyacc $<
 
 lexer.cmo: lexer.ml parser.cmo
 	ocamlc -c $<
@@ -52,8 +52,8 @@ parser.cmo: parser.ml parser.cmi lang.cmo
 .PHONY: clean
 
 ### Import files from /lib (temporarly)
-lib:
-	cp ../lib/* ./
+# lib:
+# 	cp ../lib/* ./
 
 ## Remove compiled modules and lib
 clean:
