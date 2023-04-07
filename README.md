@@ -8,13 +8,18 @@
 
 > Compilateur du langage Postscript en Ocaml
 
-## Author
+## Authors
+
+👤 **Laurian DUFRECHOU**
+
+* Github: [@Laurian-Dufrechou](https://github.com/Laurian-Dufrechou)
+
+👤 **Gaël BRUGUES**
+
+* Github: [@Gagl08](https://github.com/Gagl08)
 
 👤 **Lucas VABRE**
 
 * Github: [@LucasVbr](https://github.com/LucasVbr)
 * LinkedIn: [@lucasvbr](https://linkedin.com/in/lucasvbr)
 
-## Show your support
-
-Give a ⭐️ if this project helped you!

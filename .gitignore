@@ -8,6 +8,7 @@ src/parser.ml
 *.mli
 src/**/*.cmi
 comp
+*/**/*.output
 
 # Tests out
 tests/out/
