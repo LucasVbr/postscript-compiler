@@ -8,6 +8,28 @@ type environment = {
     funbind: fundecl list   
 };;
 
+(* Fonction sur les listes de declarations de variables *)
+let rec count_same_var_name (name: string) (var_decl_list: vardecl list) =
+    match var_decl_list with
+    | [] -> 0
+    | Vardecl(var_tp, var_name)::reste ->
+        (count_same_var_name name reste)
+        + if name = var_name then 1 else 0
+;;
+(* val count_same_var_decl : string -> Lang.vardecl list -> int = <fun> *)
+
+let rec valid_vardecl_list (var_decl_list: vardecl list) =
+    match var_decl_list with
+    | [] -> true
+    | Vardecl(var_tp, var_name)::reste ->
+        if (count_same_var_name var_name reste) = 0
+        then valid_vardecl_list reste
+        else false
+;;
+(* val valid_vardecl_list : Lang.vardecl list -> bool = <fun> *)
+
+
+
 (* Recherche dans l'environement *)
 type 'a option = None| Some of 'a;;
 
@@ -38,6 +60,8 @@ let findEnv_fun (name: fname) (env: environment) =
   -> (Lang.tp * Lang.fname * Lang.vardecl list) option = <fun>
 *)
 
+
+
 (* Ajout dans l'environnement *)
 let addEnv_var (var_decl: vardecl) (env: environment) =
     let Vardecl(var_decl_tp, var_decl_name) = var_decl
@@ -59,12 +83,43 @@ let addEnv_fun (fun_decl: fundecl) (env: environment) = {
    -> environment = <fun>
 *)
 
+
+
+(* Ajout dans l'environnement (récursif) *)
+let rec build_env_fun (env: environment) (fun_decl_list: fundecl list) =
+    match fun_decl_list with
+    | [] -> env
+    | fun_decl::reste -> 
+        let Fundecl(fun_decl_tp,_,var_decl_list) = fun_decl
+        in if valid_vardecl_list var_decl_list
+        then addEnv_fun fun_decl env
+        else raise (Failure "There is var declaration with the same name as arguments")
+;;
+(* val build_env_fun :
+   environment -> Lang.fundecl list
+   -> environment = <fun>
+*)
+
+let rec build_env_var (env: environment) (var_decl_list: vardecl list) =
+    match var_decl_list with
+    | [] -> env
+    | var_decl::reste -> build_env_var (addEnv_var var_decl env) reste
+;;
+(* val build_env_var :
+   environment -> Lang.vardecl list
+   -> environment = <fun>
+*)
+
+
+
 (* Typage d'une declaration de variable *)
 let tp_vardecl (vdecl: vardecl) = 
     let Vardecl(vdecl_tp, _) = vdecl
     in vdecl_tp
 ;;
 (* val tp_vardecl : Lang.vardecl -> Lang.tp = <fun> *)
+
+
 
 (* ----- Typage d'une expression ----- *)
 let rec tp_expr (env: environment) (expression: expr) =
@@ -202,6 +257,8 @@ let test_tp_expr =
     (List.map function_to_test input_values) = expected_result
 ;;
 
+
+
 (* ----- Typage d'une commande ----- *)
 let rec tp_cmd (env: environment) (cmd: com) =
     match cmd with
@@ -224,7 +281,7 @@ let rec tp_cmd (env: environment) (cmd: com) =
         else raise (Failure "Invalid type of Conditionnal Command")
     | Loop(cmd1) ->
         let _ = (tp_cmd env cmd1) in VoidT
-    | CallC(name, list_expr) -> tp_expr env (CallE(name, list_expr)) (* TODO => Question: Il faut renvoyer le type ??? *)
+    | CallC(name, list_expr) -> tp_expr env (CallE(name, list_expr))
     | Return(expr) -> (tp_expr env expr)
 ;;
 (* val tp_cmd :
@@ -272,34 +329,17 @@ let test_tp_cmd =
     (List.map function_to_test input_values) = expected_result
 ;;
 
+
+
 (* ----- Typage d'une définition de fonction ----- *)
-let rec count_same_var_name (name: string) (var_decl_list: vardecl list) =
-    match var_decl_list with
-    | [] -> 0
-    | Vardecl(var_tp, var_name)::reste ->
-        (count_same_var_name name reste)
-        + if name = var_name then 1 else 0
-;;
-(* val count_same_var_decl : string -> Lang.vardecl list -> int = <fun> *)
-
-let rec valid_vardecl_list (var_decl_list: vardecl list) =
-    match var_decl_list with
-    | [] -> true
-    | Vardecl(var_tp, var_name)::reste ->
-        if (count_same_var_name var_name reste) = 0
-        then valid_vardecl_list reste
-        else false
-;;
-(* val valid_vardecl_list : Lang.vardecl list -> bool = <fun> *)
-
 let tp_fundefn (env: environment) (fun_def: fundefn) =
     let Fundefn(fun_decl, cmd) = fun_def in
     let Fundecl(fun_decl_tp,_,var_decl_list) = fun_decl in
-    let env1 = (addEnv_fun fun_decl env) in (* Besoin d'effacer dans l'env si recurence ? *)
+    let env1 = build_env_var env var_decl_list in
     let _ = tp_cmd env1 cmd
     in if valid_vardecl_list var_decl_list && (tp_cmd env1 cmd) = fun_decl_tp
     then fun_decl_tp
-    else raise (Failure "Invalid function definition")
+    else raise (Failure "Type return is not the same as the type of the function")
 ;;
 (* val tp_fundefn :
    environment -> Lang.fundefn
@@ -310,20 +350,66 @@ let tp_fundefn (env: environment) (fun_def: fundefn) =
 let test_tp_fundefn =
     let function_to_test = tp_fundefn {
         localvars=[];
-        funbind=[]
+        funbind=[
+            Fundecl(BoolT, "fun1", [Vardecl(IntT, "x"); Vardecl(FloatT, "y")]);
+            Fundecl(IntT, "fun2", [Vardecl(IntT, "x"); Vardecl(FloatT, "y")]);
+        ]
     }
     and input_values = [
         Fundefn(
             Fundecl(BoolT, "fun1", [Vardecl(IntT, "a"); Vardecl(FloatT, "b")]),
             Return(BinOp(BCompar(BCeq), Const(IntV(4)), Const(IntV(5))))
-        )
+        );
+        Fundefn(
+            Fundecl(IntT, "fun2", [Vardecl(IntT, "a"); Vardecl(FloatT, "b")]),
+            Return(VarE("a"))
+        );
     ]
     and expected_result = [
-        BoolT
+        BoolT;
+        IntT;
     ] in
     (List.map function_to_test input_values) = expected_result
 ;;
 
-(* let tp_stmt fundecls = ;; *)
 
-let tp_prog (Prog (fundecls, fundefns)) = true;; (* try (tp_fundefn fundefns) && (tp_stmt fundecls) with _ -> false *)
+
+(* ----- Typage d'un programme ----- *)
+let tp_prog (Prog (fundecls, fundefns)) = 
+    let env = build_env_fun {localvars=[];funbind=[]} fundecls in
+    try (
+        let _ = List.map (tp_fundefn env) fundefns
+        in true
+    ) with _ -> false
+;;
+(* val tp_prog :
+   Lang.prog
+   -> bool = <fun>
+*)
+
+(* - tp_prog: TESTS - *)
+let test_tp_prog =
+    let function_to_test = tp_prog
+    and input_values = [
+        Prog(
+            [
+                Fundecl(BoolT, "fun1", [Vardecl(IntT, "x"); Vardecl(FloatT, "y")]);
+                Fundecl(IntT, "fun2", [Vardecl(IntT, "x"); Vardecl(FloatT, "y")]);
+            ],
+            [
+                Fundefn(
+                    Fundecl(BoolT, "fun1", [Vardecl(IntT, "a"); Vardecl(FloatT, "b")]),
+                    Return(BinOp(BCompar(BCeq), Const(IntV(4)), Const(IntV(5))))
+                );
+                Fundefn(
+                    Fundecl(IntT, "fun2", [Vardecl(IntT, "a"); Vardecl(FloatT, "b")]),
+                    Return(VarE("a"))
+                );
+            ]
+        );
+    ]
+    and expected_result = [
+        true;
+    ] in
+    (List.map function_to_test input_values) = expected_result
+;;
